@@ -1,5 +1,5 @@
-use std::io::{self, Read};
-use crossterm::terminal::{enable_raw_mode, disable_raw_mode};
+use crossterm::event::{read, Event::Key, KeyCode::Char};
+use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 
 pub struct Editor {
 }
@@ -12,26 +12,22 @@ impl Editor {
 
     pub fn run(&self) {
         enable_raw_mode().unwrap();
-        for b in io::stdin().bytes() {
-            match b {
-                Ok(b) => {
-                    let c = b as char;
-                    if c.is_control() {
-                        println!("Binary: {0:08b} ASCII: {0:#03} \r", b);
-                    } else {
-                        println!("Binary: {0:08b} ASCII: {0:#03} Character: {1:#?} \r", b, c);
+        loop {
+            match read() {
+                Ok(Key(event)) => {
+                    println!("{event:?} \r");
+                    if let Char(c) = event.code {
+                        if c == 'q' {
+                            break;
+                        }
                     }
-
-                    if c == 'q' {
-                        break;
-                    }
-                }
-                Err(e) => {
-                    println!("Error: {0:#?} \r", e);
-                }
+                },
+                Err(err) => {
+                    println!("Error: {err}");
+                },
+                _ => (),
             }
         }
-
         disable_raw_mode().unwrap();
     }
 }
