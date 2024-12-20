@@ -1,63 +1,45 @@
-use crossterm::event::{read, Event, Event::Key, KeyCode, KeyCode::Char, KeyEvent, KeyModifiers};
-use crossterm::execute;
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType};
-use std::io::stdout;
+use crossterm::event::{read, Event, Event::Key, KeyCode::Char, KeyCode::Esc, KeyEvent, KeyModifiers};
+mod ternimal;
+use ternimal::Ternimal;
 
 pub struct Editor {
     should_quit: bool
 }
 
 impl Editor {
-    pub fn default() -> Editor {
-        Editor {
-            should_quit: false
-        }
+    pub const fn default() -> Self {
+        Self { should_quit: false }
     }
 
     pub fn run(&mut self) {
-        Self::initialize().unwrap();
+        Ternimal::initialize().unwrap();
         let result = self.repl();
-        Self::terminate().unwrap();
+        Ternimal::terminate().unwrap();
         result.unwrap();
     }
 
-    fn initialize() -> Result<(), std::io::Error> {
-        enable_raw_mode()?;
-        Self::clear_screen()
-    }
-
-    fn terminate() -> Result<(), std::io::Error> {
-        disable_raw_mode()
-    }
-
-    fn clear_screen() -> Result<(), std::io::Error> {
-        let mut stdout = stdout();
-        execute!(stdout, Clear(ClearType::All))
-    }
-
     fn repl(&mut self) -> Result<(), std::io::Error> {
-        enable_raw_mode()?;
         loop {
-            let event = read()?;
-            self.evaluate_event(&event);
             self.refresh_screen()?;
 
             if self.should_quit {
                 break;
             }
+
+            let event = read()?;
+            self.evaluate_event(&event);
         }
 
-        disable_raw_mode()?;
         Ok(())
     }
 
     fn evaluate_event(&mut self, event: &Event) {
-        print!("{:#?}\r", event);
+        print!("  {event:?}\r");
         if let Key(KeyEvent {
             code, modifiers, ..
         }) = event {
             match code {
-                KeyCode::Esc => {
+                Esc => {
                     self.should_quit = true;
                 },
                 Char('q') if *modifiers == KeyModifiers::CONTROL => {
@@ -71,9 +53,24 @@ impl Editor {
 
     fn refresh_screen(&self) -> Result<(), std::io::Error> {
         if self.should_quit {
-            Self::clear_screen()?;
+            Ternimal::clear_screen()?;
             print!("Goodbye!\r");
+        } else {
+            Self::draw_rows()?;
+            Ternimal::move_cursor_to(0, 0)?;
         }
         Ok(())
     }
+
+    fn draw_rows() -> Result<(), std::io::Error> {
+        let height = Ternimal::size()?.1;
+        for current_row in 0..height {
+            print!("~");
+            if current_row + 1 < height {
+                print!("\r\n");
+            }
+        }
+        Ok(())
+    }
+
 }
